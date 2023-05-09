@@ -1,0 +1,94 @@
+version: "3.8"
+
+services:
+  eureka-server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    environment:
+      - SPRING_APPLICATION_NAME=server
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    networks:
+      my-network:
+        aliases:
+          - eureka-server
+
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: gateway
+    ports:
+      - "8082:8082"
+    depends_on:
+      - eureka-server
+    environment:
+      - SPRING_APPLICATION_NAME=gateway
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    networks:
+      - my-network
+
+  pagamentos:
+    build:
+      context: ./pagamentos
+      dockerfile: Dockerfile
+    container_name: pagamentos
+    depends_on:
+      - eureka-server
+      - mysql-pagamentos
+    environment:
+      - SPRING_APPLICATION_NAME=pagamentos-ms
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-pagamentos:3306/alurafood-pagamento?createDatabaseIfNotExist=true
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=root
+    networks:
+      - my-network
+
+  pedidos:
+    build:
+      context: ./pedidos
+      dockerfile: Dockerfile
+    container_name: pedidos
+    depends_on:
+      - eureka-server
+      - mysql-pedidos
+    environment:
+      - SPRING_APPLICATION_NAME=pedidos-ms
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-pedidos:3308/alurafood-pedidos?createDatabaseIfNotExist=true
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=root
+    networks:
+      - my-network
+
+  mysql-pagamentos:
+    image: mysql:8.0
+    container_name: mysql-pagamentos
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=alurafood-pagamento
+    ports:
+      - "3306:3306"
+    networks:
+      - my-network
+
+  mysql-pedidos:
+    image: mysql:8.0
+    container_name: mysql-pedidos
+    environment:
+      - MYSQL_TCP_PORT=3308
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=alurafood-pedidos
+    ports:
+      - "3308:3308"
+    networks:
+      - my-network
+
+networks:
+  my-network:
+    name: my-network
+    driver: bridge
